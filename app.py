@@ -113,12 +113,30 @@ def main():
     with col1:
         FRAME_WINDOW = st.image([])
     
-    cap = cv2.VideoCapture(0)
-    ret, prev = cap.read()
-    if not ret:
-        st.error("Hardware link failed (Camera).")
+    # Robust Camera Initialization
+    cap = None
+    for backend in [cv2.CAP_DSHOW, cv2.CAP_MSMF, None]:
+        if cap is not None: break
+        for index in [0, 1, 2]:
+            try:
+                if backend is not None:
+                    temp_cap = cv2.VideoCapture(index, backend)
+                else:
+                    temp_cap = cv2.VideoCapture(index)
+                if temp_cap.isOpened():
+                    ret, frame = temp_cap.read()
+                    if ret and frame is not None:
+                        cap = temp_cap
+                        break
+                temp_cap.release()
+            except:
+                continue
+
+    if cap is None:
+        st.error("CRITICAL: Hardware link failed (Camera). Please check if another app is using the camera.")
         return
 
+    ret, prev = True, frame # Use the frame we just grabbed during check
     h, w = prev.shape[:2]
     ps = ParticleSystem(num_particles=num_particles, width=w, height=h)
     prevgray = cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY)
